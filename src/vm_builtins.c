@@ -1472,7 +1472,7 @@ void VMBuiltins_setVariable(VMContext* ctx, Instance* inst, int16_t builtinVarId
         case BUILTIN_VAR_ALARM: {
             if (inst == nullptr) break;
             if (isValidAlarmIndex(arrayIndex)) {
-                int32_t newValue = RValue_toInt32(val);
+                int32_t newValue = RValue_toInt32_Round(val);
 
 #ifdef ENABLE_VM_TRACING
                 if (inst->objectIndex >= 0 && (shgeti(ctx->alarmsToBeTraced, "*") != -1 || shgeti(ctx->alarmsToBeTraced, runner->dataWin->objt.objects[inst->objectIndex].name) != -1)) {
