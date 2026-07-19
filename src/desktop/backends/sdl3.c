@@ -110,7 +110,7 @@ static SDL_Window *tryOpenWindow(int reqW, int reqH, const char* title, Uint32 f
 
 void platformSetWindowTitle(const char* title) {
     char windowTitle[256];
-    snprintf(windowTitle, sizeof(windowTitle), "Butterscotch - %s", title);
+    snprintf(windowTitle, sizeof(windowTitle), "%s", title);
     SDL_SetWindowTitle(window, windowTitle);
 }
 
@@ -132,6 +132,14 @@ void platformSetWindowSize(int32_t width, int32_t height) {
     SDL_SetWindowSize(window, width, height);
     if (gfx == SOFTWARE)
         scr = SDL_GetWindowSurface(window);
+}
+
+bool platformGetFullscreen(){
+    return ((SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) != 0);
+}
+
+void platformSetFullscreen(bool fullscreen) {
+    SDL_SetWindowFullscreen(window, fullscreen);
 }
 
 void platformGetMousePos(double *xPos, double *yPos) {
@@ -157,7 +165,7 @@ bool platformInit(int reqW, int reqH, const char *title, bool headless) {
         openControllers[i] = NULL;
     }
 
-    Uint32 flags = (gfx == SOFTWARE ? 0 : SDL_WINDOW_OPENGL) | (headless ? SDL_WINDOW_HIDDEN : SDL_WINDOW_RESIZABLE);
+    Uint32 flags = (gfx == SOFTWARE ? 0 : SDL_WINDOW_OPENGL) | (headless ? SDL_WINDOW_HIDDEN : 0);
     fbWidth = reqW;
     fbHeight = reqH;
 

@@ -117,6 +117,10 @@ void platformSetWindowSize(int32_t width, int32_t height) {
     glfwSetWindowSize(window, logicalW, logicalH);
 }
 
+bool platformGetFullscreen() { //new
+    return glfwGetWindowAttrib(window, GLFW_MAXIMIZED);
+}
+
 void platformGetMousePos(double *xPos, double *yPos) {
     if (!xPos || !yPos) return;
     glfwGetCursorPos(window, xPos, yPos);
