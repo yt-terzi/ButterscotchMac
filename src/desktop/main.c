@@ -1065,7 +1065,7 @@ int main(int argc, char* argv[]) {
 
         // Build window title
         char windowTitle[256];
-        snprintf(windowTitle, sizeof(windowTitle), "Butterscotch - %s", gen8->displayName);
+        snprintf(windowTitle, sizeof(windowTitle), "%s", gen8->displayName);
 
         // Initialize VM
         VMContext* vm = VM_create(dataWin);
@@ -1471,6 +1471,7 @@ int main(int argc, char* argv[]) {
         bool debugShowCollisionMasks = false;
         bool freeCamActive = false;
         bool actuallyShuttingDown = false;
+        uint8_t windowSizeSetting = 0;
         uint64_t lastFrameTime = nowNanos();
         uint64_t lastFrameStartTime = lastFrameTime; // for delta_time
         bool shouldWindowClose = false;
@@ -1497,7 +1498,19 @@ int main(int argc, char* argv[]) {
                 shouldWindowClose = true;
                 continue;
             }
-
+            //resolution thingy
+            if (RunnerKeyboard_checkPressed(runner->keyboard, VK_F4)) {
+                switch (windowSizeSetting) {
+                    case 0:
+                        platformSetFullscreen(true);
+                        windowSizeSetting = 1;
+                        break;
+                    case 1:
+                        platformSetFullscreen(false);
+                        windowSizeSetting = 0;
+                        break;
+                }
+            }
             // Debug key bindings
             if (runner->debugMode) {
                 // Pause
