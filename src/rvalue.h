@@ -463,6 +463,25 @@ static inline int32_t RValue_toInt32(RValue val) {
     }
 }
 
+static inline int32_t RValue_toInt32_Round(RValue val) { //returns rounded instead of truncated value
+    switch (val.type) {
+        case RVALUE_REAL:   return (int32_t) llround(val.real);
+        case RVALUE_INT32:  return val.int32;
+#ifndef NO_RVALUE_INT64
+        case RVALUE_INT64:  return (int32_t) val.int64;
+#endif
+        case RVALUE_BOOL:   return val.int32;
+        case RVALUE_STRING: return (int32_t) llround(GMLReal_strtod(val.string, nullptr));
+        case RVALUE_ARRAY:  return 0;
+#if IS_WAD17_OR_HIGHER_ENABLED
+        case RVALUE_METHOD: return 0;
+#endif
+        case RVALUE_STRUCT: return val.structInst != nullptr ? (int32_t) Instance_getInstanceId(val.structInst) : 0;
+        case RVALUE_ASSETREF: return val.int32;
+        default:            return 0;
+    }
+}
+
 static inline int64_t RValue_toInt64(RValue val) {
     switch (val.type) {
         case RVALUE_REAL:   return (int64_t) val.real;
