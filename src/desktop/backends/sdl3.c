@@ -9,6 +9,11 @@
 #include "gettime.h"
 #include <ctype.h>
 #include "runner_mouse.h"
+#ifdef __APPLE__
+#include <objc/objc.h>
+#include <objc/message.h>
+#include <objc/runtime.h>
+#endif
 
 static Runner *g_runner;
 static int32_t fbWidth, fbHeight;
@@ -262,7 +267,32 @@ void Runner_setNextFrame(uint32_t* framebuffer, int width, int height) {
 
 #endif
 
+#ifdef __APPLE__
+static void macos_matchWindowToScreenColorSpace(void) {
+    id nswin = (id)SDL_GetPointerProperty(
+        SDL_GetWindowProperties(window),
+        SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, NULL);
+    if (!nswin) return;
+
+    id screen = ((id (*)(id, SEL))objc_msgSend)(nswin, sel_registerName("screen"));
+    if (!screen) return;
+
+    id screenColorSpace = ((id (*)(id, SEL))objc_msgSend)(screen, sel_registerName("colorSpace"));
+    if (!screenColorSpace) return;
+
+    ((void (*)(id, SEL, id))objc_msgSend)(
+        nswin, sel_registerName("setColorSpace:"), screenColorSpace);
+}
+#endif
+
 void platformSwapBuffers(void) {
+#ifdef __APPLE__
+    static bool colorspaceFixed = false;
+    if (!colorspaceFixed) {
+        macos_matchWindowToScreenColorSpace();
+        colorspaceFixed = true;
+    }
+#endif
 #ifdef ENABLE_SW_RENDERER
     if(gfx == SOFTWARE) {
         SDL_BlitSurface(nextFb, NULL, scr, NULL);
