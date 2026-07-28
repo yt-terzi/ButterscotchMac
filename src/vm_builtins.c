@@ -273,6 +273,7 @@ static const BuiltinVarEntry BUILTIN_VAR_TABLE[] = {
     { "background_alpha", BUILTIN_VAR_BACKGROUND_ALPHA },
     { "background_color", BUILTIN_VAR_BACKGROUND_COLOR },
     { "background_colour", BUILTIN_VAR_BACKGROUND_COLOUR },
+    { "background_foreground", BUILTIN_VAR_BACKGROUND_FOREGROUND },
     { "background_height", BUILTIN_VAR_BACKGROUND_HEIGHT },
     { "background_hspeed", BUILTIN_VAR_BACKGROUND_HSPEED },
     { "background_index", BUILTIN_VAR_BACKGROUND_INDEX },
@@ -1035,6 +1036,9 @@ RValue VMBuiltins_getVariable(VMContext* ctx, Instance* inst, int16_t builtinVar
         case BUILTIN_VAR_BACKGROUND_COLOR:
         case BUILTIN_VAR_BACKGROUND_COLOUR:
             return RValue_makeReal((GMLReal) runner->backgroundColor);
+        case BUILTIN_VAR_BACKGROUND_FOREGROUND:
+            if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) return RValue_makeBool(runner->backgrounds[arrayIndex].foreground);
+            return RValue_makeBool(false);
 
         // Timing
         case BUILTIN_VAR_CURRENT_DAY:
@@ -1709,6 +1713,9 @@ void VMBuiltins_setVariable(VMContext* ctx, Instance* inst, int16_t builtinVarId
         case BUILTIN_VAR_BACKGROUND_COLOR:
         case BUILTIN_VAR_BACKGROUND_COLOUR:
             runner->backgroundColor = (uint32_t) RValue_toInt32(val);
+            return;
+        case BUILTIN_VAR_BACKGROUND_FOREGROUND:
+            if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].foreground = RValue_toBool(val);
             return;
 
         // Room properties
