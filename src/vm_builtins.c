@@ -7408,6 +7408,13 @@ static RValue builtin_file_delete(VMContext* ctx, RValue* args, int32_t argCount
     Runner* runner = ctx->runner;
     FileSystem* fs = runner->fileSystem;
     fs->vtable->deleteFile(fs, path);
+
+    // Drop the last-closed-INI cache if it's for this path, otherwise a subsequent ini_open()
+    // on the same path would resurrect the deleted file from stale in-memory contents on close.
+    if (runner->cachedIniPath != nullptr && strcmp(runner->cachedIniPath, path) == 0) {
+        discardIniCache(runner);
+    }
+
     return RValue_makeUndefined();
 }
 
