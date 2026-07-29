@@ -1,11 +1,24 @@
 # Makefile build
 # meant to be extremely portable to weird unix-like systems
 
+# Install prefix for a statically-built SDL3 (used when STATIC=1, e.g. `make STATIC=1 run`)
+SDL3_STATIC_PREFIX := $(HOME)/.local/sdl3-static
+
+# UNIVERSAL=1 builds a universal (x86_64 + arm64) binary on macOS, e.g. `make UNIVERSAL=1`.
+# Note: with STATIC=1 UNIVERSAL=1, SDL3_STATIC_PREFIX's library must itself be a universal/fat build.
+
+# Minimum macOS version targeted. The sdl3-static build at SDL3_STATIC_PREFIX must be built with
+# a matching (or lower) -DCMAKE_OSX_DEPLOYMENT_TARGET or the linker will warn/fail on version mismatches.
+MACOSX_MIN_VERSION := 13.0
+
 CC := cc
 PKG_CONFIG := pkg-config
 
 empty :=
 space := $(empty) $(empty)
+
+export CPATH=/opt/homebrew/include
+export LIBRARY_PATH=/opt/homebrew/lib
 
 ifeq ($(filter clean distclean,$(MAKECMDGOALS)),)
 
@@ -43,7 +56,7 @@ INCLUDES += $(INCLUDE). \
 HEADERS += $(wildcard src/*.h) $(shell find vendor -name '*.h')
 SRCS += $(wildcard src/*.c) $(wildcard src/image/*.c) $(wildcard vendor/bzip2/*.c) vendor/md5/md5.c vendor/sha1/sha1.c vendor/base64/base64.c
 
-DESKTOP_BACKEND := glfw3
+DESKTOP_BACKEND := sdl3
 AUDIO_BACKEND := miniaudio
 
 ifdef BUTTERSCOTCH_COMMIT_DATE
@@ -98,7 +111,16 @@ LIBS += $(SDL2_LIBS)
 DEFINES += $(DEFINE)USE_SDL2
 endif
 ifeq ($(DESKTOP_BACKEND),sdl3)
+ifdef STATIC
+# Prepend the static prefix's pkgconfig dir so it's found ahead of any system-installed (dynamic) sdl3.pc.
+# This is set inline on the pkg-config invocations themselves rather than via `export`, since GNU Make's
+# `export VAR := val` only reaches recipe subshells, not $(shell ...) calls used in variable definitions.
+SDL3_PKG_CONFIG_ENV := PKG_CONFIG_PATH="$(SDL3_STATIC_PREFIX)/lib/pkgconfig:$$PKG_CONFIG_PATH"
+SDL3_LIBS += $(shell $(SDL3_PKG_CONFIG_ENV) $(PKG_CONFIG) --static --libs sdl3)
+INCLUDES += $(shell $(SDL3_PKG_CONFIG_ENV) $(PKG_CONFIG) --cflags sdl3)
+else
 SDL3_LIBS += $(shell $(PKG_CONFIG) $(PKG_CONFIG_FLAGS) --libs sdl3)
+endif
 LIBS += $(SDL3_LIBS)
 DEFINES += $(DEFINE)USE_SDL3
 endif
@@ -184,9 +206,21 @@ DEFINES += $(DEFINE)WIN32_LEAN_AND_MEAN
 else
 ifeq ($(OS),Darwin)
 LIBS += -lobjc
+ifdef STATIC
+CFLAGS += -mmacosx-version-min=$(MACOSX_MIN_VERSION)
+LDFLAGS += -mmacosx-version-min=$(MACOSX_MIN_VERSION)
+endif
 else
 LIBS += -lm
 endif
+endif
+
+ifdef UNIVERSAL
+ifneq ($(OS),Darwin)
+$(error UNIVERSAL=1 (universal binary) is only supported on macOS)
+endif
+CFLAGS += -arch x86_64 -arch arm64
+LDFLAGS += -arch x86_64 -arch arm64
 endif
 
 ifndef VERBOSE
@@ -195,7 +229,15 @@ endif
 
 OBJS := $(addprefix build/,$(SRCS:.c=.c.$(OBJ_EXT)))
 
+# Game to launch via `make run` / `make STATIC=1 run`, override with ROM=/path/to/data.win
+ROM ?= tests/loritta-and-the-stars/data.win
+
+.PHONY: all run clean distclean
+
 all: build/butterscotch
+
+run: build/butterscotch
+	./build/butterscotch $(ROM) $(RUNFLAGS)
 
 -include $(OBJS:.$(OBJ_EXT)=.d)
 
