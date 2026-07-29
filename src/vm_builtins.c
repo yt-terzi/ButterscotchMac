@@ -240,6 +240,26 @@ static Room* resolveRoomForBuiltinAccess(Runner* runner) {
     return &dataWin->room.rooms[roomIndex];
 }
 
+// gen8.gms2FPS is only populated for GameMaker Studio 2+ data.win files (major >= 2, see parseGEN8
+// in data_win.c); for GMS1-era games like Undertale it's always 0, so this is only reached as a last
+// resort when no room can be resolved at all (e.g. before the first room has loaded).
+static GMLReal resolveCurrentRoomSpeed(VMContext* ctx, Runner* runner) {
+    Room* room = resolveRoomForBuiltinAccess(runner);
+    if (room != nullptr) return (GMLReal) room->speed;
+    return (GMLReal) ctx->dataWin->gen8.gms2FPS;
+}
+
+// The true, uncapped number of game steps GameMaker is actually completing per second, derived from
+// the real (wall-clock) time the last step took. Matches GML's fps_real semantics: unlike fps, this
+// isn't clamped to room_speed and can return decimal values.
+static GMLReal computeFpsReal(VMContext* ctx, Runner* runner) {
+    // runner->deltaTime is in microseconds and is only updated once per frame (see main.c), so this
+    // naturally only "updates once every step" as the GML docs for fps/fps_real describe.
+    if (runner->deltaTime > 0.0) return (GMLReal) (1000000.0 / runner->deltaTime);
+    // No real timing sample yet (e.g. very first frame) - assume we're running at the target rate.
+    return resolveCurrentRoomSpeed(ctx, runner);
+}
+
 // Sorted (strcmp-order, LC_ALL=C) table of built-in variable names -> enum IDs.
 // We use bsearch instead of a HashMap because we don't have *that* many builtin var entries, so it is faster to use bsearch than a HashMap.
 // IMPORTANT: Entries MUST stay sorted by name for bsearch to work!
@@ -322,6 +342,7 @@ static const BuiltinVarEntry BUILTIN_VAR_TABLE[] = {
     { "direction", BUILTIN_VAR_DIRECTION },
     { "false", BUILTIN_VAR_FALSE },
     { "fps", BUILTIN_VAR_FPS },
+    { "fps_real", BUILTIN_VAR_FPS_REAL },
     { "friction", BUILTIN_VAR_FRICTION },
     { "gp_axislh", BUILTIN_VAR_GP_AXIS_LH },
     { "gp_axislv", BUILTIN_VAR_GP_AXIS_LV },
@@ -1264,8 +1285,15 @@ RValue VMBuiltins_getVariable(VMContext* ctx, Instance* inst, int16_t builtinVar
             }
             return RValue_makeReal((GMLReal) INSTANCE_NOONE);
         }
-        case BUILTIN_VAR_FPS:
-            return RValue_makeReal(ctx->dataWin->gen8.gms2FPS);
+        case BUILTIN_VAR_FPS: {
+            // fps is the actual number of steps GameMaker completes per second, capped at room_speed
+            // (use fps_real for the true, uncapped, decimal-precision value).
+            GMLReal roomSpeed = resolveCurrentRoomSpeed(ctx, runner);
+            GMLReal fpsReal = computeFpsReal(ctx, runner);
+            return RValue_makeReal(GMLReal_round(GMLReal_fmin(fpsReal, roomSpeed)));
+        }
+        case BUILTIN_VAR_FPS_REAL:
+            return RValue_makeReal(computeFpsReal(ctx, runner));
         case BUILTIN_VAR_DEBUG_MODE:
             return RValue_makeBool(false);
         case BUILTIN_VAR_DELTA_TIME:
