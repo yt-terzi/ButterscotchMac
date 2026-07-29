@@ -1529,7 +1529,7 @@ int main(int argc, char* argv[]) {
                 InputRecording_processFrame(globalInputRecording, runner->keyboard, inputFrameCount++);
 
                 // Go to next room
-                if (RunnerKeyboard_checkPressed(runner->keyboard, VK_PAGEUP)) {
+                if (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_PAGEUP)) {
                     DataWin* dw = runner->dataWin;
                     if ((int32_t) dw->gen8.roomOrderCount > runner->currentRoomOrderPosition + 1) {
                         int32_t nextIdx = dw->gen8.roomOrder[runner->currentRoomOrderPosition + 1];
@@ -1540,7 +1540,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Go to previous room
-                if (RunnerKeyboard_checkPressed(runner->keyboard, VK_PAGEDOWN)) {
+                if (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_PAGEDOWN)) {
                     DataWin* dw = runner->dataWin;
                     if (runner->currentRoomOrderPosition > 0) {
                         int32_t prevIdx = dw->gen8.roomOrder[runner->currentRoomOrderPosition - 1];
@@ -1551,12 +1551,12 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Dump runner state to console
-                if (RunnerKeyboard_checkPressed(runner->keyboard, VK_F12)) {
+                if (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_F12)) {
                     fprintf(stderr, "Debug: Dumping runner state at frame %d\n", runner->frameCount);
                     Runner_dumpState(runner);
                 }
 
-                if (RunnerKeyboard_checkPressed(runner->keyboard, VK_F11)) {
+                if (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_F11)) {
                     fprintf(stderr, "Debug: Dumping runner state at frame %d\n", runner->frameCount);
                     char* json = Runner_dumpStateJson(runner);
 
@@ -1580,13 +1580,13 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Toggle the collision mask debug overlay
-                if (RunnerKeyboard_checkPressed(runner->keyboard, VK_F2)) {
+                if (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_F2)) {
                     debugShowCollisionMasks = !debugShowCollisionMasks;
                     fprintf(stderr, "Debug: Collision mask overlay %s!\n", debugShowCollisionMasks ? "enabled" : "disabled");
                 }
 
                 // Enable free cam
-                if (RunnerKeyboard_checkPressed(runner->keyboard, VK_F3)) {
+                if (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_F3)) {
                     runner->freeCamPanX = 0.0f;
                     runner->freeCamPanY = 0.0f;
                     runner->freeCamZoom = 1.0f;
@@ -1614,7 +1614,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Reset global interact state because I HATE when I get stuck while moving through rooms
-                if (RunnerKeyboard_checkPressed(runner->keyboard, VK_F10)) {
+                if (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_F10)) {
                     int32_t interactVarId = shget(runner->vmContext->varNameMap, "interact");
 
                     Instance_setSelfVar(runner->vmContext->globalScopeInstance, interactVarId, RValue_makeInt32(0));
@@ -1763,7 +1763,7 @@ int main(int argc, char* argv[]) {
                 // Capture screenshot if this frame matches a requested frame
                 bool shouldScreenshot = hmget(args.screenshotFrames, runner->frameCount);
 
-                if (shouldScreenshot || RunnerKeyboard_checkPressed(runner->keyboard, VK_F5)) {
+                if (shouldScreenshot || (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_F5))) {
                     captureScreenshot(0, args.screenshotPattern, runner->frameCount, fbWidth, fbHeight, true);
                     glBindFramebuffer(GL_FRAMEBUFFER, *hostFramebuffer);
                 }
@@ -1771,7 +1771,7 @@ int main(int argc, char* argv[]) {
                 // Dump all surfaces if this frame matches a requested frame
                 bool shouldDumpSurfaces = hmget(args.screenshotSurfacesFrames, runner->frameCount);
 
-                if (shouldDumpSurfaces || RunnerKeyboard_checkPressed(runner->keyboard, VK_F6)) {
+                if (shouldDumpSurfaces || (runner->debugMode && RunnerKeyboard_checkPressed(runner->keyboard, VK_F6))) {
                     GLRenderer* gl = (GLRenderer*) renderer;
                     dumpAllSurfaces(gl, args.screenshotSurfacesPattern, runner->frameCount);
                     glBindFramebuffer(GL_FRAMEBUFFER, *hostFramebuffer);
