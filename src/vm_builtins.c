@@ -6624,6 +6624,8 @@ static RValue builtin_audio_sound_gain(VMContext* ctx, RValue* args, MAYBE_UNUSE
     if (audio == nullptr) return RValue_makeUndefined();
     int32_t soundOrInstance = RValue_toInt32(args[0]);
     float gain = (float) RValue_toReal(args[1]);
+    if (gain < 0.0f) gain = 0.0f;
+    else if (gain > 1.0f) gain = 1.0f;
     uint32_t timeMs = (uint32_t) RValue_toInt32(args[2]);
     audio->vtable->setSoundGain(audio, soundOrInstance, gain, timeMs);
     return RValue_makeUndefined();
