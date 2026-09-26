@@ -25,6 +25,11 @@ typedef struct {
     float fadeTotalTime;
     float startGain;
     int32_t priority;
+    // True while a scheduled declick fade-out (see beginStoppingFade) is playing out in the audio
+    // thread. The instance is already hidden from GML lookups (soundIndex/instanceId cleared), but
+    // ma_sound_uninit() is deferred until the fade finishes, since uninit-ing mid-fade would just
+    // move the click to a different point instead of avoiding it.
+    bool stopping;
 } SoundInstance;
 
 typedef struct {

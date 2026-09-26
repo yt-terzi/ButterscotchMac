@@ -75,6 +75,25 @@ static SoundInstance* findInstanceById(MaAudioSystem* ma, int32_t instanceId) {
     return inst;
 }
 
+// Uninitializing a still-playing ma_sound truncates its waveform mid-cycle, which is audible as a
+// click/pop. ma_sound_set_volume() has no built-in smoothing (this engine doesn't configure
+// volumeSmoothTimeInPCMFrames), so an immediate stop+uninit is a hard discontinuity, and our own
+// per-frame manual gain fade (see maUpdate) is too coarse to declick a short fade (it only steps
+// once per game frame, ~16ms at 60 FPS). Instead, schedule miniaudio's own audio-thread fade+stop,
+// which ramps sample-accurately regardless of frame rate, and defer the actual uninit to maUpdate()
+// once ma_sound_is_playing() reports the scheduled fade-out has finished.
+#define SOUND_STOP_FADE_MS 15
+
+static void beginStoppingFade(SoundInstance* inst) {
+    if (inst->stopping) return;
+    ma_sound_stop_with_fade_in_milliseconds(&inst->maSound, SOUND_STOP_FADE_MS);
+    inst->stopping = true;
+    // Hide from GML-visible lookups (audio_is_playing, audio_sound_gain, etc.) immediately, even
+    // though the underlying ma_sound keeps rendering its fade-out tail in the background.
+    inst->soundIndex = -1;
+    inst->instanceId = -1;
+}
+
 // Helper: resolve external audio file path from Sound entry
 static char* resolveExternalPath(MaAudioSystem* ma, Sound* sound) {
     const char* file = sound->file;
@@ -177,6 +196,20 @@ static void maUpdate(AudioSystem* audio, float deltaTime) {
     repeat(MAX_SOUND_INSTANCES, i) {
         SoundInstance* inst = &ma->instances[i];
         if (!inst->active) continue;
+
+        // A declick fade-out is scheduled (see beginStoppingFade); wait for it to actually finish
+        // playing out in the audio thread before tearing down the sound.
+        if (inst->stopping) {
+            if (!ma_sound_is_playing(&inst->maSound)) {
+                ma_sound_uninit(&inst->maSound);
+                if (inst->ownsDecoder) {
+                    ma_decoder_uninit(&inst->decoder);
+                }
+                inst->active = false;
+                inst->stopping = false;
+            }
+            continue;
+        }
 
         // Handle gain fading (for cases where we do manual fading)
         if (inst->fadeTimeRemaining > 0.0f) {
@@ -333,24 +366,14 @@ static void maStopSound(AudioSystem* audio, int32_t soundOrInstance) {
         // Stop specific instance
         SoundInstance* inst = findInstanceById(ma, soundOrInstance);
         if (inst != nullptr) {
-            ma_sound_stop(&inst->maSound);
-            ma_sound_uninit(&inst->maSound);
-            if (inst->ownsDecoder) {
-                ma_decoder_uninit(&inst->decoder);
-            }
-            inst->active = false;
+            beginStoppingFade(inst);
         }
     } else {
         // Stop all instances of this sound resource
         repeat(MAX_SOUND_INSTANCES, i) {
             SoundInstance* inst = &ma->instances[i];
             if (inst->active && inst->soundIndex == soundOrInstance) {
-                ma_sound_stop(&inst->maSound);
-                ma_sound_uninit(&inst->maSound);
-                if (inst->ownsDecoder) {
-                    ma_decoder_uninit(&inst->decoder);
-                }
-                inst->active = false;
+                beginStoppingFade(inst);
             }
         }
     }
@@ -362,12 +385,7 @@ static void maStopAll(AudioSystem* audio) {
     repeat(MAX_SOUND_INSTANCES, i) {
         SoundInstance* inst = &ma->instances[i];
         if (inst->active) {
-            ma_sound_stop(&inst->maSound);
-            ma_sound_uninit(&inst->maSound);
-            if (inst->ownsDecoder) {
-                ma_decoder_uninit(&inst->decoder);
-            }
-            inst->active = false;
+            beginStoppingFade(inst);
         }
     }
 }
@@ -820,12 +838,7 @@ static bool maDestroyStream(AudioSystem* audio, int32_t streamIndex) {
     repeat(MAX_SOUND_INSTANCES, i) {
         SoundInstance* inst = &ma->instances[i];
         if (inst->active && inst->soundIndex == streamIndex) {
-            ma_sound_stop(&inst->maSound);
-            ma_sound_uninit(&inst->maSound);
-            if (inst->ownsDecoder) {
-                ma_decoder_uninit(&inst->decoder);
-            }
-            inst->active = false;
+            beginStoppingFade(inst);
         }
     }
 
