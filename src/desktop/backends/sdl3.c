@@ -161,6 +161,7 @@ static bool platformGetWindowFocus(void) {
 
 bool platformInit(int reqW, int reqH, const char *title, bool headless) {
     // Init SDL
+    SDL_SetHint(SDL_HINT_MAC_PRESS_AND_HOLD, "0"); //disable accent menu
     if (!SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMEPAD)) {
         fprintf(stderr, "Failed to initialize SDL\n");
         return false;
@@ -198,6 +199,9 @@ bool platformInit(int reqW, int reqH, const char *title, bool headless) {
         fprintf(stderr, "Fatal: Could not set any video mode: %s\n", SDL_GetError());
         return false;
     }
+    // SDL3 only emits SDL_EVENT_TEXT_INPUT once text input is explicitly started for the window
+    // (unlike GLFW, which fires its character callback unconditionally).
+    SDL_StartTextInput(window);
     if (gfx != SOFTWARE) {
         SDL_GL_SetSwapInterval(0); // disable vsync
     } else
