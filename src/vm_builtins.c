@@ -291,6 +291,7 @@ static const BuiltinVarEntry BUILTIN_VAR_TABLE[] = {
     { "argument_count", BUILTIN_VAR_ARGUMENT_COUNT },
     { "async_load", BUILTIN_VAR_ASYNC_LOAD },
     { "background_alpha", BUILTIN_VAR_BACKGROUND_ALPHA },
+    { "background_blend", BUILTIN_VAR_BACKGROUND_BLEND },
     { "background_color", BUILTIN_VAR_BACKGROUND_COLOR },
     { "background_colour", BUILTIN_VAR_BACKGROUND_COLOUR },
     { "background_foreground", BUILTIN_VAR_BACKGROUND_FOREGROUND },
@@ -1054,6 +1055,9 @@ RValue VMBuiltins_getVariable(VMContext* ctx, Instance* inst, int16_t builtinVar
         case BUILTIN_VAR_BACKGROUND_ALPHA:
             if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) return RValue_makeReal((GMLReal) runner->backgrounds[arrayIndex].alpha);
             return RValue_makeReal(1.0);
+        case BUILTIN_VAR_BACKGROUND_BLEND:
+            if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) return RValue_makeReal((GMLReal) runner->backgrounds[arrayIndex].blend);
+            return RValue_makeReal((GMLReal) 0xFFFFFF);
         case BUILTIN_VAR_BACKGROUND_COLOR:
         case BUILTIN_VAR_BACKGROUND_COLOUR:
             return RValue_makeReal((GMLReal) runner->backgroundColor);
@@ -1737,6 +1741,9 @@ void VMBuiltins_setVariable(VMContext* ctx, Instance* inst, int16_t builtinVarId
             return;
         case BUILTIN_VAR_BACKGROUND_ALPHA:
             if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].alpha = (float) RValue_toReal(val);
+            return;
+        case BUILTIN_VAR_BACKGROUND_BLEND:
+            if (arrayIndex >= 0 && MAX_BACKGROUNDS > arrayIndex) runner->backgrounds[arrayIndex].blend = (uint32_t) RValue_toReal(val);
             return;
         case BUILTIN_VAR_BACKGROUND_COLOR:
         case BUILTIN_VAR_BACKGROUND_COLOUR:
