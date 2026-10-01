@@ -532,7 +532,7 @@ static void drawBackground(
         float yscale = roomH / (float) tpag->boundingHeight;
         runner->renderer->vtable->drawSprite(runner->renderer, tpagIndex, 0.0f, 0.0f, 0.0f, 0.0f, xscale, yscale, 0.0f, blend, alpha);
     } else if (tileX || tileY) {
-        Renderer_drawBackgroundTiled(runner->renderer, tpagIndex, layerOffsetX + backgroundX, layerOffsetY + backgroundY, xScale, yScale, tileX, tileY, roomW, roomH, alpha);
+        Renderer_drawBackgroundTiled(runner->renderer, tpagIndex, layerOffsetX + backgroundX, layerOffsetY + backgroundY, xScale, yScale, tileX, tileY, roomW, roomH, blend, alpha);
     } else {
         // Single placement
         runner->renderer->vtable->drawSprite(runner->renderer, tpagIndex, layerOffsetX + backgroundX, layerOffsetY + backgroundY, 0.0f, 0.0f, xScale, yScale, 0.0f, blend, alpha);
@@ -580,7 +580,7 @@ static void drawGMS1Backgrounds(Runner* runner, bool foreground) {
             0.0f,
             bg->xScale,
             bg->yScale,
-            0xFFFFFF,
+            bg->blend,
             bg->alpha
         );
     }
@@ -1620,6 +1620,7 @@ static void initRoom(Runner* runner, int32_t roomIndex) {
         dst->yScale = 1.0f;
         dst->stretch = src->stretch;
         dst->alpha = 1.0f;
+        dst->blend = 0xFFFFFF;
     }
     }
 

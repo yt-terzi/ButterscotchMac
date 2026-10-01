@@ -170,6 +170,7 @@ typedef struct {
     float xScale, yScale;     // legacy background_xscale[]/background_yscale[] (default 1.0)
     bool stretch;
     float alpha;
+    uint32_t blend;           // legacy background_blend[] tint color (default 0xFFFFFF, same as Instance.imageBlend)
 } RuntimeBackground;
 
 typedef struct {
