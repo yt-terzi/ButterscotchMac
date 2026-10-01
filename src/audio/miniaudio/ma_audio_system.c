@@ -94,6 +94,34 @@ static void beginStoppingFade(SoundInstance* inst) {
     inst->instanceId = -1;
 }
 
+// Tracks longer than this are treated as music/ambience rather than SFX, and get a 1ms-minimum fade
+// instead of an instantaneous jump both when their volume changes "instantly" (audio_sound_gain(id,
+// gain, 0), see applyInstantGain) and when they start (see maPlaySound) -- a truly instantaneous
+// ma_sound_set_volume()/ma_sound_start() is an unsmoothed step applied directly to the live mixed
+// signal, the same discontinuity mechanism as every other click declicked in this file (see
+// beginStoppingFade above). Short SFX are left completely untouched either way -- fading those made
+// things audibly worse (confirmed twice, see feedback_audio_declick_scope.md in project memory).
+#define SOUND_LONG_TRACK_MIN_LENGTH_SECONDS 10.0f
+#define SOUND_INSTANT_TRANSITION_MIN_MS 1
+
+static float soundLengthSeconds(ma_sound* sound) {
+    float lengthSeconds = 0.0f;
+    if (ma_sound_get_length_in_seconds(sound, &lengthSeconds) != MA_SUCCESS) return 0.0f;
+    return lengthSeconds;
+}
+
+static bool isLongTrack(ma_sound* sound) {
+    return soundLengthSeconds(sound) > SOUND_LONG_TRACK_MIN_LENGTH_SECONDS;
+}
+
+static void applyInstantGain(SoundInstance* inst, float gain) {
+    if (isLongTrack(&inst->maSound)) {
+        ma_sound_set_fade_in_milliseconds(&inst->maSound, -1.0f, gain, SOUND_INSTANT_TRANSITION_MIN_MS);
+    } else {
+        ma_sound_set_volume(&inst->maSound, gain);
+    }
+}
+
 // Helper: resolve external audio file path from Sound entry
 static char* resolveExternalPath(MaAudioSystem* ma, Sound* sound) {
     const char* file = sound->file;
@@ -354,6 +382,12 @@ static int32_t maPlaySound(AudioSystem* audio, int32_t soundIndex, int32_t prior
     // Track unique IDs for disambiguation
     ma->nextInstanceCounter++;
 
+    // See SOUND_LONG_TRACK_MIN_LENGTH_SECONDS above: a cold ma_sound_start() jumps straight to full
+    // volume on its very first sample, same discontinuity as an "instant" gain change, so long tracks
+    // get the same 1ms-minimum ramp instead. Short SFX start instantly, unchanged.
+    if (isLongTrack(&slot->maSound)) {
+        ma_sound_set_fade_in_milliseconds(&slot->maSound, 0.0f, 1.0f, SOUND_INSTANT_TRANSITION_MIN_MS);
+    }
     ma_sound_start(&slot->maSound);
 
     return slot->instanceId;
@@ -498,7 +532,7 @@ static void maSetSoundGain(AudioSystem* audio, int32_t soundOrInstance, float ga
                 inst->currentGain = gain;
                 inst->targetGain = gain;
                 inst->fadeTimeRemaining = 0.0f;
-                ma_sound_set_volume(&inst->maSound, gain);
+                applyInstantGain(inst, gain);
             } else {
                 inst->startGain = inst->currentGain;
                 inst->targetGain = gain;
@@ -521,7 +555,7 @@ static void maSetSoundGain(AudioSystem* audio, int32_t soundOrInstance, float ga
                         inst->currentGain = gain;
                         inst->targetGain = gain;
                         inst->fadeTimeRemaining = 0.0f;
-                        ma_sound_set_volume(&inst->maSound, gain);
+                        applyInstantGain(inst, gain);
                     } else {
                         inst->startGain = inst->currentGain;
                         inst->targetGain = gain;
